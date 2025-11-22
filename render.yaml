@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: xvideo-automation
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_USERNAME
+        fromDatabase: false
+        value: 'admin'
+      - key: APP_PASSWORD
+        fromDatabase: false
+        value: 'changeme'
+      - key: APP_API_KEY
+        fromDatabase: false
+        value: 'defaultkey'
+      - key: SESSION_SECRET
+        fromDatabase: false
+        value: 'your-session-secret-key'
