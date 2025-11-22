@@ -54,7 +54,7 @@ def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 @app.get("/search")
-async def search_videos(q: str = Query(..., min_length=1), request: Request = None, user: str = Depends(verify_auth)):
+async def search_videos(q: str = Query(..., min_length=1), request: Request = Depends(), user: str = Depends(verify_auth)):
     client_ip = request.client.host if request else "unknown"
     check_rate_limit(client_ip)
 
@@ -72,26 +72,36 @@ async def search_videos(q: str = Query(..., min_length=1), request: Request = No
             title_tag = div.select_one("a.img") or div.select_one("a")
             title = title_tag['title'].strip()
             href = title_tag["href"].strip()
-            video_id = href.split("/")[-1]
-            thumb = div.select_one("img")["data-src"] or div.select_one("img")["src"]
-            duration = div.select_one("span.duration").text.strip() if div.select_one("span.duration") else ""
-            embed_url = f"https://www.xvideos.com/embedframe/{video_id}"
+            # Correct video id extraction from URL of the format "/video123456/title"
+            import re
+            id_match = re.search(r'/video(\d+)', href)
+            video_id = id_match.group(1) if id_match else ""
+            img_tag = div.select_one("img")
+            thumb = ""
+            if img_tag:
+                thumb = img_tag.get("data-src") or img_tag.get("src") or ""
+            duration = ""
+            duration_span = div.select_one("span.duration")
+            if duration_span:
+                duration = duration_span.text.strip()
+            embed_url = f"https://www.xvideos.com/embedframe/{video_id}" if video_id else ""
 
-            videos.append({
-                "id": video_id,
-                "title": title,
-                "thumbnail": thumb,
-                "embed_url": embed_url,
-                "duration": duration,
-                "preview_clip": thumb  # XVideos does not provide preview clip easily, using thumbnail here
-            })
+            if video_id:  # Only append if we have a valid ID
+                videos.append({
+                    "id": video_id,
+                    "title": title,
+                    "thumbnail": thumb,
+                    "embed_url": embed_url,
+                    "duration": duration,
+                    "preview_clip": thumb  # XVideos does not provide preview clip easily, using thumbnail here
+                })
         except Exception:
             continue
 
     return {"query": q, "results": videos}
 
 @app.get("/video")
-async def video_details(id: str, request: Request = None, user: str = Depends(verify_auth)):
+async def video_details(id: str, request: Request = Depends(), user: str = Depends(verify_auth)):
     client_ip = request.client.host if request else "unknown"
     check_rate_limit(client_ip)
     
@@ -126,15 +136,17 @@ async def video_details(id: str, request: Request = None, user: str = Depends(ve
     download_link = ""
     try:
         # locate player sources in script tags
+        import re
+        import json
         for script in soup.find_all("script"):
             if "sources" in script.text:
-                import re
-                # JSON like pattern for video sources
-                pattern = re.compile(r'sources:s*([[^]]+])')
+                # Improved regex & JSON parsing
+                pattern = re.compile(r'sources\s*:\s*(\[[^\]]+\])')
                 match = pattern.search(script.text)
                 if match:
-                    import json
-                    sources = json.loads(match.group(1).replace("'", """))
+                    # Replace single quotes with double for JSON, be wary of edge-cases
+                    sources_str = match.group(1).replace("'", '"')
+                    sources = json.loads(sources_str)
                     # Pick best quality mp4 url
                     for source in sources:
                         if source.get("type") == "video/mp4":
