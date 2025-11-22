@@ -1,0 +1,27 @@
+<%- include('layout.ejs') %>
+<div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+  <h1 class="text-3xl mb-4"><%= title %></h1>
+  <img src="<%= thumb %>" alt="<%= title %>" class="w-full rounded mb-6">
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div>
+      <p><strong>Duration:</strong> <%= duration %></p>
+      <p><strong>Embed:</strong> <input value="<%= embed %>" readonly class="w-full p-2 border rounded text-xs"></p>
+      <% if (downloadUrl) { %>
+        <p class="mt-4">
+          <a href="/download?url=<%= encodeURIComponent(downloadUrl) %>" class="bg-green-600 text-white px-6 py-3 rounded">
+            DOWNLOAD VIDEO
+          </a>
+        </p>
+        <p class="text-xs mt-2 break-all"><strong>Direct Link:</strong> <%= downloadUrl %></p>
+      <% } else { %>
+        <p class="text-red-500">Direct download not found</p>
+      <% } %>
+    </div>
+    <div>
+      <video controls class="w-full rounded" poster="<%= thumb %>">
+        <source src="<%= downloadUrl %>" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</div>
