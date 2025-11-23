@@ -72,33 +72,50 @@ async function searchXVideos(query, page = 0) {
       ? `https://www.xvideos.com/?k=${encodeURIComponent(query)}&p=${page}`
       : `https://www.xvideos.com/?k=${encodeURIComponent(query)}`;
     
-    console.log('[SEARCH]', url);
+    console.log('[SEARCH] Fetching:', url);
     const { data } = await http.get(url);
     const $ = cheerio.load(data);
     
     const videos = [];
     
-    $('#content .mozaique .thumb-block').each((i, elem) => {
+    // Try multiple selectors for xvideos.com
+    const videoBlocks = $('div.thumb-block');
+    console.log('[SEARCH] Found', videoBlocks.length, 'video blocks');
+    
+    videoBlocks.each((i, elem) => {
       try {
         const $block = $(elem);
         
-        // Get video link
-        const $link = $block.find('.thumb-under .title a').first();
-        const href = $link.attr('href');
-        const title = $link.attr('title') || $link.text().trim();
+        // Get all links in the block
+        const $titleLink = $block.find('p.title a');
+        const href = $titleLink.attr('href');
+        const title = $titleLink.attr('title') || $titleLink.text().trim();
+        
+        console.log('[SEARCH] Processing:', { href, title: title.substring(0, 50) });
         
         // Extract video ID from URL like /video73562167/title
-        const idMatch = href ? href.match(/\/video(\d+)\//) : null;
-        if (!idMatch) return;
+        if (!href) {
+          console.log('[SEARCH] No href found');
+          return;
+        }
+        
+        const idMatch = href.match(/\/video(\d+)\//);
+        if (!idMatch) {
+          console.log('[SEARCH] No ID match for:', href);
+          return;
+        }
         
         const videoId = idMatch[1];
         
-        // Get thumbnail
-        const $img = $block.find('.thumb img');
-        let thumb = $img.attr('data-src') || $img.attr('src') || '';
+        // Get thumbnail - try multiple attributes
+        const $img = $block.find('img');
+        let thumb = $img.attr('data-src') || $img.attr('src') || $img.attr('data-thumb_url') || '';
         
         // Get duration
-        const duration = $block.find('.duration').text().trim() || '';
+        const duration = $block.find('span.duration').text().trim() || 
+                        $block.find('.duration').text().trim() || '';
+        
+        console.log('[SEARCH] Added video:', { id: videoId, title: title.substring(0, 30), duration });
         
         videos.push({
           id: videoId,
@@ -114,12 +131,12 @@ async function searchXVideos(query, page = 0) {
     
     const result = { query, page, videos, count: videos.length };
     setCache(cacheKey, result);
-    console.log('[SEARCH] Found', videos.length, 'videos');
+    console.log('[SEARCH] Total found:', videos.length, 'videos');
     return result;
     
   } catch (error) {
-    console.error('[SEARCH] Error:', error.message);
-    throw new Error('Search failed');
+    console.error('[SEARCH] Request error:', error.message);
+    throw new Error('Search failed: ' + error.message);
   }
 }
 
@@ -345,6 +362,43 @@ app.get('/api/health', (req, res) => {
     cache: cache.size,
     timestamp: new Date().toISOString()
   });
+});
+
+// DEBUG endpoint - remove after testing
+app.get('/api/debug/search', authApi, async (req, res) => {
+  try {
+    const query = req.query.q || 'test';
+    const url = `https://www.xvideos.com/?k=${encodeURIComponent(query)}`;
+    
+    const { data } = await http.get(url);
+    const $ = cheerio.load(data);
+    
+    // Get sample of what we find
+    const blocks = $('div.thumb-block');
+    const sample = [];
+    
+    blocks.slice(0, 3).each((i, elem) => {
+      const $block = $(elem);
+      sample.push({
+        html: $block.html().substring(0, 500),
+        titleLink: {
+          href: $block.find('p.title a').attr('href'),
+          title: $block.find('p.title a').text().trim(),
+          titleAttr: $block.find('p.title a').attr('title')
+        },
+        allLinks: $block.find('a').map((i, el) => $(el).attr('href')).get(),
+        duration: $block.find('span.duration').text().trim()
+      });
+    });
+    
+    res.json({
+      url,
+      totalBlocks: blocks.length,
+      sample
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ============================================================================
