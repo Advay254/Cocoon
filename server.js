@@ -93,19 +93,29 @@ async function searchXVideos(query, page = 0) {
         
         console.log('[SEARCH] Processing:', { href, title: title.substring(0, 50) });
         
-        // Extract video ID from URL like /video73562167/title
+        // Extract video ID from URL - xvideos now uses /video.XXXXX/title format
         if (!href) {
           console.log('[SEARCH] No href found');
           return;
         }
         
-        const idMatch = href.match(/\/video(\d+)\//);
-        if (!idMatch) {
+        // Try new format: /video.otbadvv7045/title
+        let videoId = null;
+        let idMatch = href.match(/\/video\.([a-z0-9]+)\//);
+        if (idMatch) {
+          videoId = idMatch[1];
+        } else {
+          // Try old format: /video12345678/title
+          idMatch = href.match(/\/video(\d+)\//);
+          if (idMatch) {
+            videoId = idMatch[1];
+          }
+        }
+        
+        if (!videoId) {
           console.log('[SEARCH] No ID match for:', href);
           return;
         }
-        
-        const videoId = idMatch[1];
         
         // Get thumbnail - try multiple attributes
         const $img = $block.find('img');
@@ -146,8 +156,17 @@ async function getVideoDownloadUrl(videoId) {
   if (cached) return cached;
 
   try {
-    const url = `https://www.xvideos.com/video${videoId}/`;
-    console.log('[VIDEO]', url);
+    // Construct URL - handle both old numeric IDs and new alphanumeric IDs
+    let url;
+    if (/^\d+$/.test(videoId)) {
+      // Old format: numeric ID
+      url = `https://www.xvideos.com/video${videoId}/`;
+    } else {
+      // New format: alphanumeric ID
+      url = `https://www.xvideos.com/video.${videoId}/`;
+    }
+    
+    console.log('[VIDEO] Fetching:', url);
     
     const { data } = await http.get(url);
     const $ = cheerio.load(data);
@@ -217,7 +236,9 @@ async function getVideoDownloadUrl(videoId) {
       duration,
       thumbnail,
       downloadUrl,
-      embedUrl: `https://www.xvideos.com/embedframe/${videoId}`,
+      embedUrl: /^\d+$/.test(videoId) 
+        ? `https://www.xvideos.com/embedframe/${videoId}`
+        : `https://www.xvideos.com/embedframe.${videoId}`,
       pageUrl: url
     };
     
