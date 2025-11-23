@@ -217,7 +217,7 @@
       
       <div class="video-grid">
         <% videos.forEach(video => { %>
-          <a href="/video/<%= video.id %>" class="video-card">
+          <a href="/video/<%= video.id %>?path=<%= encodeURIComponent(video.path) %>" class="video-card">
             <img src="<%= video.thumbnail %>" alt="<%= video.title %>" class="video-thumbnail" loading="lazy">
             <div class="video-info">
               <div class="video-title"><%= video.title %></div>
