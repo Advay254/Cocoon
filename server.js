@@ -462,32 +462,56 @@ app.get('/api/debug/search', authApi, async (req, res) => {
 app.get('/api/debug/video/:id', authApi, async (req, res) => {
   try {
     const videoId = req.params.id;
+    const fullPath = req.query.path;
+    
     let url;
-    if (/^\d+$/.test(videoId)) {
+    if (fullPath) {
+      url = `https://www.xvideos.com${fullPath}`;
+    } else if (/^\d+$/.test(videoId)) {
       url = `https://www.xvideos.com/video${videoId}/`;
     } else {
       url = `https://www.xvideos.com/video.${videoId}/`;
     }
     
-    const { data } = await http.get(url);
+    console.log('[DEBUG] Trying URL:', url);
     
-    // Look for all potential video URL patterns
-    const patterns = {
-      setVideoUrlHigh: data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/),
-      setVideoUrlLow: data.match(/html5player\.setVideoUrlLow\('([^']+)'\)/),
-      setVideoHLS: data.match(/html5player\.setVideoHLS\('([^']+)'\)/),
-      anyMp4: data.match(/https?:\/\/[^'"]+\.mp4[^'"]*/g),
-      setVideoUrl: data.match(/setVideoUrl[^(]*\('([^']+)'\)/g)
-    };
-    
-    res.json({
-      url,
-      videoId,
-      patterns,
-      htmlSample: data.substring(0, 2000)
-    });
+    try {
+      const response = await http.get(url);
+      
+      // Look for all potential video URL patterns
+      const data = response.data;
+      const patterns = {
+        setVideoUrlHigh: data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/),
+        setVideoUrlLow: data.match(/html5player\.setVideoUrlLow\('([^']+)'\)/),
+        setVideoHLS: data.match(/html5player\.setVideoHLS\('([^']+)'\)/),
+        anyMp4: data.match(/https?:\/\/[^'"]+\.mp4[^'"]*/g)?.slice(0, 5),
+        setVideoUrl: data.match(/setVideoUrl[^(]*\('([^']+)'\)/g)?.slice(0, 5)
+      };
+      
+      res.json({
+        success: true,
+        url,
+        videoId,
+        status: response.status,
+        patterns,
+        htmlSample: data.substring(0, 1000)
+      });
+    } catch (axiosError) {
+      res.json({
+        success: false,
+        url,
+        videoId,
+        error: axiosError.message,
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        headers: axiosError.config?.headers
+      });
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message, stack: error.stack });
+    res.status(500).json({ 
+      error: error.message, 
+      stack: error.stack 
+    });
   }
 });
 
