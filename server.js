@@ -202,7 +202,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
     let match = data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/);
     if (match && match[1]) {
       downloadUrl = match[1];
-      console.log('[VIDEO] ✓ Found via setVideoUrlHigh');
+      console.log('[VIDEO] ✓ Found via setVideoUrlHigh:', downloadUrl.substring(0, 50));
     }
     
     // Method 2: html5player.setVideoUrlLow
@@ -210,7 +210,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
       match = data.match(/html5player\.setVideoUrlLow\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] ✓ Found via setVideoUrlLow');
+        console.log('[VIDEO] ✓ Found via setVideoUrlLow:', downloadUrl.substring(0, 50));
       }
     }
     
@@ -219,7 +219,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
       match = data.match(/setVideoUrlHigh\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] ✓ Found via setVideoUrlHigh (no prefix)');
+        console.log('[VIDEO] ✓ Found via setVideoUrlHigh (no prefix):', downloadUrl.substring(0, 50));
       }
     }
     
@@ -228,7 +228,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
       match = data.match(/setVideoUrlLow\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] ✓ Found via setVideoUrlLow (no prefix)');
+        console.log('[VIDEO] ✓ Found via setVideoUrlLow (no prefix):', downloadUrl.substring(0, 50));
       }
     }
     
@@ -237,7 +237,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
       match = data.match(/html5player\.setVideoHLS\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] ✓ Found via HLS');
+        console.log('[VIDEO] ✓ Found via HLS:', downloadUrl.substring(0, 50));
       }
     }
     
@@ -246,7 +246,7 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
       match = data.match(/https?:\/\/[^'"]+\.mp4[^'"']*/);
       if (match) {
         downloadUrl = match[0];
-        console.log('[VIDEO] ✓ Found via generic mp4 search');
+        console.log('[VIDEO] ✓ Found via generic mp4 search:', downloadUrl.substring(0, 50));
       }
     }
     
@@ -258,12 +258,12 @@ async function getVideoDownloadUrl(videoId, fullPath = null) {
         const urlMatch = jsonMatch[1].match(/"([^"]*\.mp4[^"]*)"/);
         if (urlMatch) {
           downloadUrl = urlMatch[1];
-          console.log('[VIDEO] ✓ Found via JSON config');
+          console.log('[VIDEO] ✓ Found via JSON config:', downloadUrl.substring(0, 50));
         }
       }
     }
     
-    console.log('[VIDEO] Final downloadUrl:', downloadUrl ? 'FOUND' : 'NOT FOUND');
+    console.log('[VIDEO] Final downloadUrl:', downloadUrl ? `Found: ${downloadUrl.substring(0, 80)}...` : 'NOT FOUND');
     
     const result = {
       id: videoId,
