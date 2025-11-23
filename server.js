@@ -133,7 +133,7 @@ async function searchXVideos(query, page = 0) {
           duration: duration,
           thumbnail: thumb,
           url: `https://www.xvideos.com${href}`,
-          fullPath: href  // Store the full path for later use
+          path: href  // Include path so API can use it
         });
       } catch (err) {
         console.error('[SEARCH] Parse error:', err.message);
@@ -340,7 +340,17 @@ app.post('/search', authWeb, async (req, res) => {
 
 app.get('/video/:id', authWeb, async (req, res) => {
   try {
-    const video = await getVideoDownloadUrl(req.params.id);
+    const videoId = req.params.id;
+    const path = req.query.path; // Get path from query
+    
+    if (!path) {
+      return res.render('video', { 
+        video: null, 
+        error: 'Missing video path. Please search again.' 
+      });
+    }
+    
+    const video = await getVideoDownloadUrl(videoId, path);
     res.render('video', { video, error: null });
   } catch (error) {
     res.render('video', { video: null, error: 'Failed to load video' });
