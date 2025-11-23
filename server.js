@@ -53,7 +53,7 @@ app.get('/search', apiKey, async (req, res) => {
     $('div.thumb-block').each((i, el) => {
       const title = $(el).find('p.title a').text().trim();
       const href = $(el).find('p.title a').attr('href');
-      const thumb = \( (el).find('img.thumb').attr('data-src') || \)(el).find('img').attr('src') || '';
+      const thumb = $(el).find('img.thumb').attr('data-src') || $(el).find('img').attr('src') || '';
       const duration = $(el).find('span.duration').text().trim();
       if (href?.startsWith('/video')) {
         const id = href.split('/')[2].split(/[/?#]/)[0];
