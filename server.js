@@ -132,7 +132,8 @@ async function searchXVideos(query, page = 0) {
           title: title,
           duration: duration,
           thumbnail: thumb,
-          url: `https://www.xvideos.com${href}`
+          url: `https://www.xvideos.com${href}`,
+          fullPath: href  // Store the full path for later use
         });
       } catch (err) {
         console.error('[SEARCH] Parse error:', err.message);
@@ -150,19 +151,22 @@ async function searchXVideos(query, page = 0) {
   }
 }
 
-async function getVideoDownloadUrl(videoId) {
+async function getVideoDownloadUrl(videoId, fullPath = null) {
   const cacheKey = `video:${videoId}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
   try {
-    // Construct URL - handle both old numeric IDs and new alphanumeric IDs
+    // Construct URL - use fullPath if provided, otherwise try to construct
     let url;
-    if (/^\d+$/.test(videoId)) {
+    if (fullPath) {
+      // Use the full path from search results
+      url = `https://www.xvideos.com${fullPath}`;
+    } else if (/^\d+$/.test(videoId)) {
       // Old format: numeric ID
       url = `https://www.xvideos.com/video${videoId}/`;
     } else {
-      // New format: alphanumeric ID
+      // New format: try basic construction (may fail without title slug)
       url = `https://www.xvideos.com/video.${videoId}/`;
     }
     
