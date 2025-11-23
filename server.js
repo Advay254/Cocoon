@@ -404,20 +404,68 @@ app.get('/api/video/:id', authApi, async (req, res) => {
   }
 });
 
-app.get('/api/download/:id', authApi, async (req, res) => {
+// NEW: Simple all-in-one download endpoint
+app.get('/api/get-download', authApi, async (req, res) => {
   try {
-    const video = await getVideoDownloadUrl(req.params.id);
-    if (!video.downloadUrl) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Download URL not available' 
+    const query = req.query.q;
+    const videoIndex = parseInt(req.query.index) || 0; // Which result to get (0 = first)
+    
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing query parameter "q"',
+        usage: '/api/get-download?key=X&q=search_term&index=0'
       });
     }
-    res.redirect(video.downloadUrl);
+    
+    console.log('[API /api/get-download] Searching for:', query);
+    
+    // Step 1: Search
+    const searchResults = await searchXVideos(query, 0);
+    
+    if (!searchResults.videos || searchResults.videos.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No videos found for this search'
+      });
+    }
+    
+    // Step 2: Get the video at the specified index
+    const video = searchResults.videos[videoIndex];
+    
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        error: `No video at index ${videoIndex}. Found ${searchResults.videos.length} videos total.`
+      });
+    }
+    
+    console.log('[API /api/get-download] Getting download URL for:', video.id);
+    
+    // Step 3: Get download URL
+    const videoDetails = await getVideoDownloadUrl(video.id, video.path);
+    
+    res.json({
+      success: true,
+      video: {
+        id: videoDetails.id,
+        title: videoDetails.title,
+        duration: videoDetails.duration,
+        thumbnail: videoDetails.thumbnail,
+        downloadUrl: videoDetails.downloadUrl,
+        pageUrl: videoDetails.pageUrl
+      },
+      searchResults: {
+        total: searchResults.videos.length,
+        selectedIndex: videoIndex
+      }
+    });
+    
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    console.error('[API /api/get-download] Error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
