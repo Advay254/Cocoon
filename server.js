@@ -16,26 +16,20 @@ const PORT = process.env.PORT || 3000;
 // CONFIGURATION & MIDDLEWARE
 // ============================================================================
 
-// Security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for embedded videos
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
 }));
 
-// Compression
 app.use(compression());
-
-// Logging
 app.use(morgan('combined'));
 
-// View engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change_me_please',
   resave: false,
@@ -43,32 +37,21 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
-// Rate limiting
-const limiter = rateLimit({
+app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests, please try again later.'
-});
-app.use(limiter);
-
-// API rate limiting (stricter)
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  skip: (req) => !req.path.includes('/api/')
-});
-app.use(apiLimiter);
+  max: 100
+}));
 
 // ============================================================================
-// IN-MEMORY CACHE
+// CACHE
 // ============================================================================
 
 class SimpleCache {
-  constructor(ttl = 300000) { // 5 minutes default
+  constructor(ttl = 300000) {
     this.cache = new Map();
     this.ttl = ttl;
   }
@@ -95,18 +78,17 @@ class SimpleCache {
   }
 }
 
-const searchCache = new SimpleCache(300000); // 5 min
-const videoCache = new SimpleCache(600000);  // 10 min
+const searchCache = new SimpleCache(300000);
+const videoCache = new SimpleCache(600000);
 
 // ============================================================================
-// UTILITIES
+// AXIOS SETUP
 // ============================================================================
 
-// Axios instance with timeout and retry
 const axiosInstance = axios.create({
-  timeout: 10000,
+  timeout: 15000,
   headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   }
 });
 
@@ -114,33 +96,52 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(null, async (error) => {
   const config = error.config;
   if (!config || !config.retry) config.retry = 0;
-  
   if (config.retry >= 3) return Promise.reject(error);
-  
   config.retry += 1;
-  const delay = new Promise(resolve => setTimeout(resolve, 1000 * config.retry));
-  await delay;
-  
+  await new Promise(resolve => setTimeout(resolve, 1000 * config.retry));
   return axiosInstance(config);
 });
 
-// Input sanitization
-function sanitizeInput(input) {
-  if (!input) return '';
-  return input.toString().trim().replace(/[<>]/g, '');
-}
-
-// Logger
 function log(level, message, data = {}) {
   const timestamp = new Date().toISOString();
   console.log(JSON.stringify({ timestamp, level, message, ...data }));
 }
 
+function sanitizeInput(input) {
+  if (!input) return '';
+  return input.toString().trim().replace(/[<>]/g, '');
+}
+
 // ============================================================================
-// AUTHENTICATION & AUTHORIZATION
+// AUTHENTICATION MIDDLEWARE
 // ============================================================================
 
-// Login routes
+const auth = (req, res, next) => {
+  if (req.session.authenticated) return next();
+  res.redirect('/login');
+};
+
+const apiKey = (req, res, next) => {
+  const publicRoutes = ['/login', '/logout', '/docs', '/', '/api/v1/health'];
+  if (publicRoutes.includes(req.path)) return next();
+  
+  const key = req.query.key || req.headers['x-api-key'];
+  
+  if (key === process.env.API_KEY_MAIN) {
+    req.apiKeyValid = true;
+    return next();
+  }
+  
+  return res.status(401).json({ 
+    error: 'API key required',
+    message: 'Provide API key via ?key=YOUR_KEY or x-api-key header'
+  });
+};
+
+// ============================================================================
+// LOGIN ROUTES
+// ============================================================================
+
 app.get('/login', (req, res) => {
   if (req.session.authenticated) return res.redirect('/admin');
   res.render('login', { error: null });
@@ -151,7 +152,6 @@ app.post('/login', (req, res) => {
   
   if (username === process.env.USERNAME && password === process.env.PASSWORD) {
     req.session.authenticated = true;
-    req.session.loginTime = Date.now();
     log('info', 'User logged in', { username });
     return res.redirect('/admin');
   }
@@ -165,34 +165,23 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// Middleware: Authentication
-const auth = (req, res, next) => {
-  if (req.session.authenticated) return next();
-  res.redirect('/login');
-};
+// ============================================================================
+// SCRAPING FUNCTIONS - FIXED
+// ============================================================================
 
-// Middleware: API Key validation
-const apiKey = (req, res, next) => {
-  // Public routes
-  const publicRoutes = ['/login', '/logout', '/docs', '/'];
-  if (publicRoutes.includes(req.path)) return next();
+function extractVideoId(href) {
+  // href format: /video12345678/title or /video.12345678/title
+  if (!href) return null;
   
-  const key = req.query.key || req.headers['x-api-key'];
-  
-  if (key === process.env.API_KEY_MAIN) {
-    req.apiKeyValid = true;
-    return next();
+  const match = href.match(/\/video\.?(\d+)\//);
+  if (match && match[1]) {
+    return match[1];
   }
   
-  return res.status(401).json({ 
-    error: 'API key required',
-    message: 'Please provide a valid API key via ?key=YOUR_KEY or x-api-key header'
-  });
-};
-
-// ============================================================================
-// SCRAPING FUNCTIONS
-// ============================================================================
+  // Fallback: try to extract any number after /video
+  const fallback = href.match(/\/video\.?(\d+)/);
+  return fallback ? fallback[1] : null;
+}
 
 async function scrapeSearch(query, page = 1) {
   const cacheKey = `search:${query}:${page}`;
@@ -212,23 +201,20 @@ async function scrapeSearch(query, page = 1) {
     const results = [];
 
     $('div.thumb-block').each((i, el) => {
-      const title = $(el).find('p.title a').text().trim();
-      const href = $(el).find('p.title a').attr('href');
-      const thumb = $(el).find('img.thumb').attr('data-src') || $(el).find('img').attr('src') || '';
-      const duration = $(el).find('span.duration').text().trim();
-      const views = $(el).find('span.views').text().trim();
-      const rating = $(el).find('div.rating').text().trim();
-
-      if (href?.startsWith('/video')) {
-        const id = href.split('/')[2].split(/[/?#]/)[0];
+      const $el = $(el);
+      const $titleLink = $el.find('p.title a');
+      
+      const title = $titleLink.attr('title') || $titleLink.text().trim();
+      const href = $titleLink.attr('href');
+      const duration = $el.find('span.duration').text().trim();
+      
+      const videoId = extractVideoId(href);
+      
+      if (videoId) {
         results.push({
-          id,
-          title,
-          thumb: thumb.replace('thumbs/', 'thumbsxl/'),
-          duration,
-          views,
-          rating,
-          url: `https://www.xvideos.com${href}`
+          title: title,
+          duration: duration,
+          videoId: videoId
         });
       }
     });
@@ -237,8 +223,7 @@ async function scrapeSearch(query, page = 1) {
       query,
       page,
       results,
-      count: results.length,
-      hasMore: results.length >= 27 // Typical page size
+      count: results.length
     };
 
     searchCache.set(cacheKey, response);
@@ -251,85 +236,144 @@ async function scrapeSearch(query, page = 1) {
   }
 }
 
-async function scrapeVideo(id) {
-  const cacheKey = `video:${id}`;
+async function getVideoDownloadUrl(videoId) {
+  const cacheKey = `video:${videoId}`;
   const cached = videoCache.get(cacheKey);
   if (cached) {
-    log('info', 'Cache hit for video', { id });
+    log('info', 'Cache hit for video', { videoId });
     return cached;
   }
 
   try {
-    const { data } = await axiosInstance.get(`https://www.xvideos.com/video${id}/`);
+    const url = `https://www.xvideos.com/video${videoId}/`;
+    const { data } = await axiosInstance.get(url);
     const $ = cheerio.load(data);
 
-    const title = $('meta[property="og:title"]').attr('content') || $('h2.page-title').text().trim();
-    const thumb = ($('meta[property="og:image"]').attr('content') || '').replace('thumbs/', 'thumbsxl/');
-    const duration = $('span.duration').first().text().trim();
-    const views = $('div#video-tabs strong.mobile-hide').first().text().trim();
-    const rating = $('div.rating-bar span.value').text().trim();
-    const description = $('meta[property="og:description"]').attr('content') || '';
-    const embed = `https://www.xvideos.com/embedframe/${id}`;
-    const tags = [];
+    const title = $('meta[property="og:title"]').attr('content') || 
+                  $('h2.page-title').text().trim() ||
+                  'Unknown Title';
     
-    $('ul.video-tags a').each((i, el) => {
-      tags.push($(el).text().trim());
-    });
+    const duration = $('span.duration').first().text().trim() || 'Unknown';
 
-    // Extract video URLs
+    // Extract download URL - try multiple methods
     let downloadUrl = null;
-    const high = data.match(/setVideoUrlHigh\('([^']+)'\)/);
-    const low = data.match(/setVideoUrlLow\('([^']+)'\)/);
-    downloadUrl = high ? high[1] : (low ? low[1] : null);
+    
+    // Method 1: setVideoUrlHigh
+    const highMatch = data.match(/setVideoUrlHigh\('([^']+)'\)/);
+    if (highMatch && highMatch[1]) {
+      downloadUrl = highMatch[1];
+    }
+    
+    // Method 2: setVideoUrlLow
+    if (!downloadUrl) {
+      const lowMatch = data.match(/setVideoUrlLow\('([^']+)'\)/);
+      if (lowMatch && lowMatch[1]) {
+        downloadUrl = lowMatch[1];
+      }
+    }
+    
+    // Method 3: html5player.setVideoHLS
+    if (!downloadUrl) {
+      const hlsMatch = data.match(/html5player\.setVideoHLS\('([^']+)'\)/);
+      if (hlsMatch && hlsMatch[1]) {
+        downloadUrl = hlsMatch[1];
+      }
+    }
+
+    // Method 4: Look in JSON data
+    if (!downloadUrl) {
+      const jsonMatch = data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/);
+      if (jsonMatch && jsonMatch[1]) {
+        downloadUrl = jsonMatch[1];
+      }
+    }
 
     const response = {
-      id,
       title,
-      thumb,
       duration,
-      views,
-      rating,
-      description,
-      tags,
-      embed,
-      downloadUrl,
-      url: `https://www.xvideos.com/video${id}/`
+      downloadUrl: downloadUrl || null
     };
 
     videoCache.set(cacheKey, response);
-    log('info', 'Video scraped', { id, title });
+    log('info', 'Video scraped', { videoId, hasDownloadUrl: !!downloadUrl });
     
     return response;
   } catch (error) {
-    log('error', 'Video scraping failed', { id, error: error.message });
+    log('error', 'Video scraping failed', { videoId, error: error.message });
+    throw error;
+  }
+}
+
+async function getTrending() {
+  const cacheKey = 'trending';
+  const cached = searchCache.get(cacheKey);
+  if (cached) {
+    log('info', 'Cache hit for trending');
+    return cached;
+  }
+
+  try {
+    const { data } = await axiosInstance.get('https://www.xvideos.com/');
+    const $ = cheerio.load(data);
+    const trending = [];
+
+    $('div.thumb-block').slice(0, 20).each((i, el) => {
+      const $el = $(el);
+      const $titleLink = $el.find('p.title a');
+      
+      const title = $titleLink.attr('title') || $titleLink.text().trim();
+      const href = $titleLink.attr('href');
+      const duration = $el.find('span.duration').text().trim();
+      
+      const videoId = extractVideoId(href);
+      
+      if (videoId) {
+        trending.push({
+          title: title,
+          duration: duration,
+          videoId: videoId
+        });
+      }
+    });
+
+    const response = {
+      trending,
+      count: trending.length
+    };
+
+    searchCache.set(cacheKey, response);
+    log('info', 'Trending fetched', { count: trending.length });
+    
+    return response;
+  } catch (error) {
+    log('error', 'Trending fetch failed', { error: error.message });
     throw error;
   }
 }
 
 // ============================================================================
-// WEB ROUTES (Original functionality maintained)
+// WEB ROUTES (UI)
 // ============================================================================
 
-app.get('/', (req, res) => res.redirect('/search'));
+app.get('/', (req, res) => {
+  if (req.session.authenticated) {
+    return res.redirect('/search');
+  }
+  res.redirect('/login');
+});
 
-app.get('/search', apiKey, async (req, res) => {
+app.get('/search', auth, async (req, res) => {
   const q = sanitizeInput(req.query.q);
   const page = parseInt(req.query.page) || 1;
   
-  if (!q) return res.render('search', { results: [], query: '', page: 1, hasMore: false });
+  if (!q) return res.render('search', { results: [], query: '', page: 1 });
 
   try {
     const data = await scrapeSearch(q, page);
-    
-    if (req.query.format === 'json') {
-      return res.json(data);
-    }
-    
     res.render('search', { 
       results: data.results, 
       query: q,
-      page: data.page,
-      hasMore: data.hasMore
+      page: data.page
     });
   } catch (error) {
     log('error', 'Search route error', { query: q, error: error.message });
@@ -337,33 +381,51 @@ app.get('/search', apiKey, async (req, res) => {
   }
 });
 
-app.get('/video', apiKey, async (req, res) => {
-  const id = sanitizeInput(req.query.id);
+app.get('/video', auth, async (req, res) => {
+  const videoId = sanitizeInput(req.query.id);
   
-  if (!id) return res.status(400).json({ error: 'No video ID provided' });
+  if (!videoId) return res.status(400).send('No video ID provided');
 
   try {
-    const video = await scrapeVideo(id);
-    
-    if (req.query.format === 'json') {
-      return res.json(video);
-    }
-    
-    res.render('video', video);
+    const video = await getVideoDownloadUrl(videoId);
+    res.render('video', {
+      id: videoId,
+      title: video.title,
+      duration: video.duration,
+      downloadUrl: video.downloadUrl,
+      thumb: `https://img-hw.xvideos-cdn.com/videos/thumbs169ll/${videoId}/1.jpg`,
+      embed: `https://www.xvideos.com/embedframe/${videoId}`
+    });
   } catch (error) {
-    log('error', 'Video route error', { id, error: error.message });
+    log('error', 'Video route error', { videoId, error: error.message });
     res.status(500).send('Video error. Please try again later.');
   }
 });
 
-app.get('/download', apiKey, (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).json({ error: 'No download URL provided' });
-  res.redirect(url);
+app.get('/docs', auth, (req, res) => res.render('docs'));
+
+app.get('/admin', auth, (req, res) => {
+  res.render('admin', { 
+    apiKey: process.env.API_KEY_MAIN,
+    stats: {
+      uptime: Math.floor(process.uptime()),
+      cacheSize: {
+        search: searchCache.cache.size,
+        video: videoCache.cache.size
+      }
+    }
+  });
+});
+
+app.post('/admin/cache/clear', auth, (req, res) => {
+  searchCache.clear();
+  videoCache.clear();
+  log('info', 'Cache cleared');
+  res.json({ success: true, message: 'Cache cleared' });
 });
 
 // ============================================================================
-// API ROUTES (New RESTful endpoints)
+// API ROUTES (JSON)
 // ============================================================================
 
 app.get('/api/v1/search', apiKey, async (req, res) => {
@@ -373,15 +435,16 @@ app.get('/api/v1/search', apiKey, async (req, res) => {
     
     if (!q) {
       return res.status(400).json({ 
+        success: false,
         error: 'Query parameter required',
-        message: 'Please provide a search query using ?q=yourquery'
+        usage: 'GET /api/v1/search?key=YOUR_KEY&q=searchterm'
       });
     }
     
     const data = await scrapeSearch(q, page);
     res.json({
       success: true,
-      data
+      data: data
     });
   } catch (error) {
     res.status(500).json({
@@ -392,10 +455,10 @@ app.get('/api/v1/search', apiKey, async (req, res) => {
   }
 });
 
-app.get('/api/v1/video/:id', apiKey, async (req, res) => {
+app.get('/api/v1/video/:videoId', apiKey, async (req, res) => {
   try {
-    const id = sanitizeInput(req.params.id);
-    const video = await scrapeVideo(id);
+    const videoId = sanitizeInput(req.params.videoId);
+    const video = await getVideoDownloadUrl(videoId);
     
     res.json({
       success: true,
@@ -410,36 +473,41 @@ app.get('/api/v1/video/:id', apiKey, async (req, res) => {
   }
 });
 
-app.get('/api/v1/trending', apiKey, async (req, res) => {
+app.get('/api/v1/download/:videoId', apiKey, async (req, res) => {
   try {
-    const { data } = await axiosInstance.get('https://www.xvideos.com/');
-    const $ = cheerio.load(data);
-    const trending = [];
-
-    $('div.thumb-block').slice(0, 20).each((i, el) => {
-      const title = $(el).find('p.title a').text().trim();
-      const href = $(el).find('p.title a').attr('href');
-      const thumb = $(el).find('img.thumb').attr('data-src') || $(el).find('img').attr('src') || '';
-      const duration = $(el).find('span.duration').text().trim();
-
-      if (href?.startsWith('/video')) {
-        const id = href.split('/')[2].split(/[/?#]/)[0];
-        trending.push({
-          id,
-          title,
-          thumb: thumb.replace('thumbs/', 'thumbsxl/'),
-          duration,
-          url: `https://www.xvideos.com${href}`
-        });
-      }
-    });
-
+    const videoId = sanitizeInput(req.params.videoId);
+    const video = await getVideoDownloadUrl(videoId);
+    
+    if (!video.downloadUrl) {
+      return res.status(404).json({
+        success: false,
+        error: 'Download URL not available for this video'
+      });
+    }
+    
     res.json({
       success: true,
       data: {
-        trending,
-        count: trending.length
+        title: video.title,
+        duration: video.duration,
+        downloadUrl: video.downloadUrl
       }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch download URL',
+      message: error.message
+    });
+  }
+});
+
+app.get('/api/v1/trending', apiKey, async (req, res) => {
+  try {
+    const data = await getTrending();
+    res.json({
+      success: true,
+      data: data
     });
   } catch (error) {
     res.status(500).json({
@@ -463,49 +531,47 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // ============================================================================
-// ADMIN & DOCUMENTATION
+// DOWNLOAD ROUTE
 // ============================================================================
 
-app.get('/docs', (req, res) => res.render('docs'));
-
-app.get('/admin', auth, (req, res) => {
-  res.render('admin', { 
-    apiKey: process.env.API_KEY_MAIN,
-    stats: {
-      uptime: Math.floor(process.uptime()),
-      cacheSize: {
-        search: searchCache.cache.size,
-        video: videoCache.cache.size
-      },
-      nodeVersion: process.version,
-      environment: process.env.NODE_ENV || 'development'
+app.get('/download', apiKey, async (req, res) => {
+  const videoId = req.query.id;
+  const url = req.query.url;
+  
+  if (url) {
+    return res.redirect(url);
+  }
+  
+  if (videoId) {
+    try {
+      const video = await getVideoDownloadUrl(videoId);
+      if (video.downloadUrl) {
+        return res.redirect(video.downloadUrl);
+      }
+      return res.status(404).json({ error: 'Download URL not found' });
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to fetch download URL' });
     }
+  }
+  
+  return res.status(400).json({ 
+    error: 'Provide ?id=VIDEO_ID or ?url=DOWNLOAD_URL'
   });
-});
-
-app.post('/admin/cache/clear', auth, (req, res) => {
-  searchCache.clear();
-  videoCache.clear();
-  log('info', 'Cache cleared by admin');
-  res.json({ success: true, message: 'Cache cleared successfully' });
 });
 
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     error: 'Not found',
-    message: 'The requested resource does not exist',
     path: req.path
   });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
-  log('error', 'Unhandled error', { error: err.message, stack: err.stack });
+  log('error', 'Unhandled error', { error: err.message });
   res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
@@ -513,15 +579,12 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================================
-// SERVER START
+// START SERVER
 // ============================================================================
 
 app.listen(PORT, () => {
-  log('info', `Server started on port ${PORT}`, {
-    environment: process.env.NODE_ENV || 'development',
-    nodeVersion: process.version
-  });
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/docs`);
-  console.log(`🔐 Admin Panel: http://localhost:${PORT}/admin`);
+  log('info', `Server started on port ${PORT}`);
+  console.log(`🚀 Server: http://localhost:${PORT}`);
+  console.log(`🔐 Login: http://localhost:${PORT}/login`);
+  console.log(`📚 Docs: http://localhost:${PORT}/docs`);
 });
