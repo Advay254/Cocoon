@@ -168,7 +168,10 @@ async function getVideoDownloadUrl(videoId) {
     
     console.log('[VIDEO] Fetching:', url);
     
-    const { data } = await http.get(url);
+    const { data, status } = await http.get(url);
+    console.log('[VIDEO] Response status:', status);
+    console.log('[VIDEO] Response length:', data.length);
+    
     const $ = cheerio.load(data);
     
     // Extract title
@@ -177,6 +180,8 @@ async function getVideoDownloadUrl(videoId) {
                   $('.title-text').text().trim() ||
                   'Video';
     
+    console.log('[VIDEO] Title:', title);
+    
     // Extract thumbnail
     const thumbnail = $('meta[property="og:image"]').attr('content') || '';
     
@@ -184,14 +189,16 @@ async function getVideoDownloadUrl(videoId) {
     const duration = $('.duration').first().text().trim() || 
                      $('meta[property="video:duration"]').attr('content') || '';
     
-    // Extract download URL - MULTIPLE METHODS
+    console.log('[VIDEO] Duration:', duration);
+    
+    // Extract download URL - MULTIPLE METHODS WITH LOGGING
     let downloadUrl = null;
     
     // Method 1: html5player.setVideoUrlHigh
     let match = data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/);
     if (match && match[1]) {
       downloadUrl = match[1];
-      console.log('[VIDEO] Found HIGH quality URL');
+      console.log('[VIDEO] ✓ Found via setVideoUrlHigh');
     }
     
     // Method 2: html5player.setVideoUrlLow
@@ -199,20 +206,26 @@ async function getVideoDownloadUrl(videoId) {
       match = data.match(/html5player\.setVideoUrlLow\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] Found LOW quality URL');
+        console.log('[VIDEO] ✓ Found via setVideoUrlLow');
       }
     }
     
     // Method 3: setVideoUrlHigh (without html5player prefix)
     if (!downloadUrl) {
       match = data.match(/setVideoUrlHigh\('([^']+)'\)/);
-      if (match && match[1]) downloadUrl = match[1];
+      if (match && match[1]) {
+        downloadUrl = match[1];
+        console.log('[VIDEO] ✓ Found via setVideoUrlHigh (no prefix)');
+      }
     }
     
     // Method 4: setVideoUrlLow (without html5player prefix)
     if (!downloadUrl) {
       match = data.match(/setVideoUrlLow\('([^']+)'\)/);
-      if (match && match[1]) downloadUrl = match[1];
+      if (match && match[1]) {
+        downloadUrl = match[1];
+        console.log('[VIDEO] ✓ Found via setVideoUrlLow (no prefix)');
+      }
     }
     
     // Method 5: Check for HLS stream
@@ -220,15 +233,33 @@ async function getVideoDownloadUrl(videoId) {
       match = data.match(/html5player\.setVideoHLS\('([^']+)'\)/);
       if (match && match[1]) {
         downloadUrl = match[1];
-        console.log('[VIDEO] Found HLS stream');
+        console.log('[VIDEO] ✓ Found via HLS');
       }
     }
     
-    // Method 6: Look in window objects
+    // Method 6: Look for any video URLs in data
     if (!downloadUrl) {
-      match = data.match(/setVideo[Uu]rl[HL][io][gw][hd]?\('([^']+)'\)/);
-      if (match && match[1]) downloadUrl = match[1];
+      match = data.match(/https?:\/\/[^'"]+\.mp4[^'"']*/);
+      if (match) {
+        downloadUrl = match[0];
+        console.log('[VIDEO] ✓ Found via generic mp4 search');
+      }
     }
+    
+    // Method 7: Look in JSON data structures
+    if (!downloadUrl) {
+      const jsonMatch = data.match(/html5player\.set[^{]*(\{[^}]+videoUrl[^}]+\})/);
+      if (jsonMatch) {
+        console.log('[VIDEO] Found JSON config:', jsonMatch[1].substring(0, 200));
+        const urlMatch = jsonMatch[1].match(/"([^"]*\.mp4[^"]*)"/);
+        if (urlMatch) {
+          downloadUrl = urlMatch[1];
+          console.log('[VIDEO] ✓ Found via JSON config');
+        }
+      }
+    }
+    
+    console.log('[VIDEO] Final downloadUrl:', downloadUrl ? 'FOUND' : 'NOT FOUND');
     
     const result = {
       id: videoId,
@@ -248,7 +279,8 @@ async function getVideoDownloadUrl(videoId) {
     
   } catch (error) {
     console.error('[VIDEO] Error:', error.message);
-    throw new Error('Failed to get video');
+    console.error('[VIDEO] Stack:', error.stack);
+    throw new Error('Failed to get video: ' + error.message);
   }
 }
 
@@ -419,6 +451,39 @@ app.get('/api/debug/search', authApi, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// DEBUG video page
+app.get('/api/debug/video/:id', authApi, async (req, res) => {
+  try {
+    const videoId = req.params.id;
+    let url;
+    if (/^\d+$/.test(videoId)) {
+      url = `https://www.xvideos.com/video${videoId}/`;
+    } else {
+      url = `https://www.xvideos.com/video.${videoId}/`;
+    }
+    
+    const { data } = await http.get(url);
+    
+    // Look for all potential video URL patterns
+    const patterns = {
+      setVideoUrlHigh: data.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/),
+      setVideoUrlLow: data.match(/html5player\.setVideoUrlLow\('([^']+)'\)/),
+      setVideoHLS: data.match(/html5player\.setVideoHLS\('([^']+)'\)/),
+      anyMp4: data.match(/https?:\/\/[^'"]+\.mp4[^'"]*/g),
+      setVideoUrl: data.match(/setVideoUrl[^(]*\('([^']+)'\)/g)
+    };
+    
+    res.json({
+      url,
+      videoId,
+      patterns,
+      htmlSample: data.substring(0, 2000)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
