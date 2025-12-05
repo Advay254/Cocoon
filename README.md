@@ -1,167 +1,189 @@
-# Cocoon - Production Ready
+<div align="center">
 
-Complete XVideos.com downloader with beautiful web interface and REST API for automation.
+# 🦋 Cocoon - Production Ready
 
-## ✨ Features
+*A complete adult video downloader with a clean web interface and REST API for smooth automation*
 
-### 🌐 Web Interface
-- Secure login system
-- Search videos by keywords
-- View search results in grid
-- Click video to see player + download button
-- Direct MP4 download links
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-16+-green.svg)](https://nodejs.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-### 🔌 REST API
-- `/api/search` - Search videos
-- `/api/video/:id` - Get video info + download URL
-- `/api/download/:id` - Direct download redirect
-- `/api/health` - Server health check
+</div>
 
-## 📁 Complete File Structure
+---
+
+## ✨ What's Inside
+
+### 🌐 Beautiful Web Interface
+- Simple login system to keep things secure
+- Search for videos using any keywords
+- Browse results in a nice grid layout
+- Click any video to watch and download
+- Get direct MP4 download links instantly
+
+### 🔌 Easy-to-Use REST API
+- `/api/search` - Find videos by keyword
+- `/api/video/:id` - Get video details and download link
+- `/api/download/:id` - Download videos directly
+- `/api/health` - Check if everything's running smoothly
+
+---
+
+## 📁 Project Structure
+
+Here's what you'll find inside:
 
 ```
-xvideos-downloader/
-├── server.js              # Main application
-├── package.json           # Dependencies
-├── .env                   # Environment variables (YOU CREATE THIS)
-├── .env.example           # Example environment file
-├── .gitignore             # Git ignore rules
-├── README.md              # This file
+cocoon-downloader/
+├── server.js              # Main app logic
+├── package.json           # Project info and dependencies
+├── .env                   # Your secret settings (you'll create this)
+├── .env.example           # Example settings file
+├── .gitignore             # Files Git should ignore
+├── README.md              # You're reading it!
 ├── views/
 │   ├── login.ejs          # Login page
-│   ├── home.ejs           # Home/search page
-│   ├── results.ejs        # Search results grid
-│   └── video.ejs          # Video player + download
-└── public/                # Static files folder (CREATE EMPTY)
+│   ├── home.ejs           # Search page
+│   ├── results.ejs        # Results grid
+│   └── video.ejs          # Video player and download
+└── public/                # Folder for images, CSS, etc. (create empty)
 ```
 
-## 🚀 Quick Setup
+---
 
-### 1. Create Project Folder
+## 🚀 Getting Started
+
+### Step 1: Create Your Project Folder
 
 ```bash
-mkdir xvideos-downloader
-cd xvideos-downloader
+mkdir cocoon-downloader
+cd cocoon-downloader
 ```
 
-### 2. Create All Files
+### Step 2: Add All the Files
 
-Create the following files with content from the artifacts:
+Create these files using the content from the artifacts:
 - `server.js`
 - `package.json`
 - `.env.example`
 - `.gitignore`
 - `README.md`
 
-### 3. Create Views Folder
+### Step 3: Create the Views Folder
 
 ```bash
 mkdir views
 ```
 
-Then create inside `views/`:
+Then add these files inside `views/`:
 - `login.ejs`
 - `home.ejs`
 - `results.ejs`
 - `video.ejs`
 
-### 4. Create Public Folder
+### Step 4: Create the Public Folder
 
 ```bash
 mkdir public
 ```
 
-(Leave it empty - it's for static files if needed later)
+*(Leave this empty for now - you can add custom styles or images later)*
 
-### 5. Setup Environment Variables
+### Step 5: Set Up Your Settings
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` file:
+Open the `.env` file and customize it:
 
 ```env
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=MySecurePassword123!
-API_KEY=my_secret_api_key_12345
-SESSION_SECRET=random_string_at_least_32_characters_long
+ADMIN_PASSWORD=YourSecurePassword123!
+API_KEY=your_secret_api_key_here
+SESSION_SECRET=a_random_string_at_least_32_characters_long
 PORT=3000
 ```
 
-### 6. Install Dependencies
+### Step 6: Install Everything You Need
 
 ```bash
 npm install
 ```
 
-### 7. Run Locally
+### Step 7: Run It Locally
 
 ```bash
 npm start
 ```
 
-Visit: `http://localhost:3000`
+Open your browser and go to: `http://localhost:3000`
 
-## 🌐 Deploy to Render
+---
 
-### 1. Push to GitHub
+## 🌐 Deploy to the Cloud (Render)
+
+### Push to GitHub
 
 ```bash
 git init
 git add .
-git commit -m "Initial commit - XVideos Downloader"
+git commit -m "Initial commit - Cocoon Video Downloader"
 git branch -M main
 git remote add origin YOUR_GITHUB_REPO_URL
 git push -u origin main
 ```
 
-### 2. Deploy on Render.com
+### Deploy on Render.com
 
-1. Go to https://render.com and login
-2. Click "New +" → "Web Service"
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `xvideos-downloader`
+1. Head to https://render.com and sign in
+2. Click **"New +"** → **"Web Service"**
+3. Connect your GitHub repo
+4. Fill in the details:
+   - **Name**: `cocoon-downloader`
    - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-5. Add Environment Variables:
-   - `ADMIN_USERNAME` = your username
-   - `ADMIN_PASSWORD` = your password
-   - `API_KEY` = your api key
-   - `SESSION_SECRET` = random 32+ char string
-6. Click "Create Web Service"
+5. Add your settings (Environment Variables):
+   - `ADMIN_USERNAME` = your chosen username
+   - `ADMIN_PASSWORD` = your chosen password
+   - `API_KEY` = your chosen API key
+   - `SESSION_SECRET` = a random 32+ character string
+6. Click **"Create Web Service"**
 
-## 📖 Usage Guide
+Done! Your app will be live in a few minutes.
 
-### Web Interface
+---
 
-1. **Login**: 
-   - Visit your deployed URL (e.g., `https://your-app.onrender.com`)
-   - Enter username and password
+## 📖 How to Use It
 
-2. **Search**:
-   - Enter keywords in search box
-   - Click "Search" button
-   - See results in grid
+### Using the Web Interface
 
-3. **Download**:
-   - Click any video card
-   - See video player
-   - Click "Download Now" button
-   - Get direct MP4 file
+1. **Log In**: 
+   - Go to your app's URL (like `https://your-app.onrender.com`)
+   - Enter your username and password
 
-### API Usage
+2. **Search for Videos**:
+   - Type keywords into the search box
+   - Hit the "Search" button
+   - See all results in a grid
 
-All API endpoints require API key via `?key=YOUR_KEY` or header `x-api-key: YOUR_KEY`
+3. **Download Videos**:
+   - Click on any video thumbnail
+   - Watch the preview
+   - Click "Download Now" to save the MP4 file
 
-#### 1. Health Check
+### Using the API
+
+All API calls need an API key. Add it to your URL like `?key=YOUR_KEY` or use the header `x-api-key: YOUR_KEY`
+
+#### 1. Check Server Health
 
 ```bash
 GET /api/health
 ```
 
+Response:
 ```json
 {
   "status": "ok",
@@ -171,58 +193,62 @@ GET /api/health
 }
 ```
 
-#### 2. Search Videos
+#### 2. Search for Videos
 
 ```bash
-GET /api/search?key=YOUR_KEY&q=search_term
+GET /api/search?key=YOUR_KEY&q=funny
 ```
 
+Response:
 ```json
 {
   "success": true,
-  "query": "search_term",
+  "query": "funny",
   "page": 0,
   "count": 27,
   "videos": [
     {
       "id": "12345678",
-      "title": "Video Title",
+      "title": "Funny Video",
       "duration": "10:30",
       "thumbnail": "https://...",
-      "url": "https://www.xvideos.com/video12345678/..."
+      "url": "https://www.example-video-site.com/video12345678/..."
     }
   ]
 }
 ```
 
-#### 3. Get Video Info + Download URL
+#### 3. Get Video Info
 
 ```bash
-GET /api/video/:id?key=YOUR_KEY
+GET /api/video/12345678?key=YOUR_KEY
 ```
 
+Response:
 ```json
 {
   "success": true,
   "video": {
     "id": "12345678",
-    "title": "Video Title",
+    "title": "Funny Video",
     "duration": "10:30",
     "thumbnail": "https://...",
     "downloadUrl": "https://...video.mp4",
-    "embedUrl": "https://www.xvideos.com/embedframe/12345678",
-    "pageUrl": "https://www.xvideos.com/video12345678/"
+    "embedUrl": "https://www.example-video-site.com/embedframe/12345678",
+    "pageUrl": "https://www.example-video-site.com/video12345678/"
   }
 }
 ```
 
-#### 4. Direct Download (Redirect)
+#### 4. Download Directly
 
 ```bash
-GET /api/download/:id?key=YOUR_KEY
+GET /api/download/12345678?key=YOUR_KEY
 ```
 
-Redirects to the direct MP4 download URL.
+This takes you straight to the MP4 download.
+
+---
 
 ## 💻 Code Examples
 
@@ -234,7 +260,7 @@ const axios = require('axios');
 const API_URL = 'https://your-app.onrender.com';
 const API_KEY = 'your_api_key';
 
-// Search videos
+// Search for videos
 async function searchVideos(query) {
   const { data } = await axios.get(`${API_URL}/api/search`, {
     params: { key: API_KEY, q: query }
@@ -242,7 +268,7 @@ async function searchVideos(query) {
   return data.videos;
 }
 
-// Get download URL
+// Get download link
 async function getDownloadUrl(videoId) {
   const { data } = await axios.get(`${API_URL}/api/video/${videoId}`, {
     params: { key: API_KEY }
@@ -250,7 +276,7 @@ async function getDownloadUrl(videoId) {
   return data.video.downloadUrl;
 }
 
-// Download video to file
+// Download video to your computer
 async function downloadVideo(videoId, filename) {
   const downloadUrl = await getDownloadUrl(videoId);
   const response = await axios.get(downloadUrl, {
@@ -266,7 +292,7 @@ async function downloadVideo(videoId, filename) {
   });
 }
 
-// Usage
+// Try it out
 (async () => {
   const videos = await searchVideos('funny');
   console.log(`Found ${videos.length} videos`);
@@ -285,7 +311,7 @@ import requests
 API_URL = 'https://your-app.onrender.com'
 API_KEY = 'your_api_key'
 
-# Search videos
+# Search for videos
 def search_videos(query):
     response = requests.get(
         f'{API_URL}/api/search',
@@ -293,7 +319,7 @@ def search_videos(query):
     )
     return response.json()['videos']
 
-# Get download URL
+# Get download link
 def get_download_url(video_id):
     response = requests.get(
         f'{API_URL}/api/video/{video_id}',
@@ -310,7 +336,7 @@ def download_video(video_id, filename):
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
 
-# Usage
+# Try it out
 videos = search_videos('funny')
 print(f'Found {len(videos)} videos')
 
@@ -319,7 +345,7 @@ download_video(video_id, 'video.mp4')
 print('Downloaded!')
 ```
 
-### cURL
+### cURL (Command Line)
 
 ```bash
 # Search
@@ -332,56 +358,117 @@ curl "https://your-app.onrender.com/api/video/12345678?key=YOUR_KEY"
 curl -L -o video.mp4 "https://your-app.onrender.com/api/download/12345678?key=YOUR_KEY"
 ```
 
-## 🔒 Security Features
+---
 
-- ✅ Session-based authentication for web UI
-- ✅ API key authentication for API endpoints
-- ✅ Rate limiting (200 req/15min)
-- ✅ Password protection
-- ✅ Secure session cookies
+## 🔒 Built-In Security
 
-## ⚡ Performance
-
-- ✅ In-memory caching (5 min TTL)
-- ✅ Fast video ID extraction
-- ✅ Multiple download URL extraction methods
-- ✅ Automatic retry on failures
-- ✅ Optimized scraping
-
-## 🐛 Troubleshooting
-
-### "Invalid username or password"
-Check your `.env` file and make sure `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set correctly.
-
-### "Invalid API key"
-Make sure you're passing the correct API key:
-- URL: `?key=YOUR_KEY`
-- Header: `x-api-key: YOUR_KEY`
-
-### No download URL available
-Some videos may not have extractable download URLs. Try another video.
-
-### Empty search results
-The search query might not return results. Try different keywords.
-
-## 📝 Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `ADMIN_USERNAME` | Web login username | `admin` |
-| `ADMIN_PASSWORD` | Web login password | `SecurePass123!` |
-| `API_KEY` | API authentication key | `my_api_key_12345` |
-| `SESSION_SECRET` | Session encryption secret | `random32charstring...` |
-| `PORT` | Server port (optional) | `3000` |
-
-## 📄 License
-
-MIT
-
-## ⚠️ Disclaimer
-
-This tool is for educational purposes only. Respect copyright laws and terms of service.
+- ✅ Login system for web access
+- ✅ API key protection for automation
+- ✅ Smart rate limiting (200 requests per 15 minutes)
+- ✅ Password-protected admin panel
+- ✅ Safe session handling
 
 ---
 
-Made for XVideos downloading
+## ⚡ Performance Features
+
+- ✅ Built-in caching (keeps things fast for 5 minutes)
+- ✅ Quick video ID detection
+- ✅ Multiple backup methods for finding download links
+- ✅ Smart retry system if something fails
+- ✅ Optimized web scraping
+
+---
+
+## 🐛 Common Issues & Fixes
+
+### "Invalid username or password"
+Double-check your `.env` file. Make sure `ADMIN_USERNAME` and `ADMIN_PASSWORD` match what you're typing.
+
+### "Invalid API key"
+Make sure you're sending the API key correctly:
+- In the URL: `?key=YOUR_KEY`
+- In headers: `x-api-key: YOUR_KEY`
+
+### Can't find a download link
+Some videos might not work. Try a different video or search term.
+
+### No search results
+Your search might be too specific. Try simpler or different keywords.
+
+---
+
+## 📝 Settings Reference
+
+| Setting | What It Does | Example |
+|---------|--------------|---------|
+| `ADMIN_USERNAME` | Your login username | `admin` |
+| `ADMIN_PASSWORD` | Your login password | `SecurePass123!` |
+| `API_KEY` | Key for API access | `my_api_key_12345` |
+| `SESSION_SECRET` | Keeps sessions secure | `random32charstring...` |
+| `PORT` | Port to run on (optional) | `3000` |
+
+---
+
+## 🤝 Want to Help?
+
+This project is open source and we'd love your help making it better! Here's how:
+
+1. **Fork** this repo to your own account
+2. **Create** a new branch for your changes
+3. **Make** your improvements or fixes
+4. **Test** everything works smoothly
+5. **Submit** a pull request with details about what you changed
+
+Before submitting:
+- Make sure your code is clean and easy to read
+- Test that everything still works
+- Add comments to explain tricky parts
+
+### ⭐ Show Your Support
+
+If you find this useful, consider:
+- Giving this repo a star ⭐
+- Sharing it with others who might need it
+- Reporting any bugs you find
+
+---
+
+## 📋 Usage Terms
+
+### For Personal Use
+Feel free to use this however you like for your own projects!
+
+### For Production/Commercial Use
+If you're planning to use this in a production environment or for commercial purposes:
+
+1. **Give Credit**: Please mention this project and link back to the original repo
+2. **Ask Permission**: Open an issue or reach out if you're using this in a big project
+3. **Share Back**: If you make cool improvements, consider contributing them back!
+
+We're friendly and reasonable - just want to know how Cocoon is being used out in the world. 😊
+
+---
+
+## 📄 License
+
+MIT License - see the LICENSE file for details
+
+---
+
+## ⚠️ Important Notice
+
+This tool is built for learning and personal use. Please:
+- Respect copyright laws in your country
+- Follow the terms of service of websites you interact with
+- Use responsibly and ethically
+
+---
+
+<div align="center">
+
+**Built with ❤️ for easy video downloading**
+
+*Questions? Ideas? Open an issue and let's chat!*
+
+</div>
