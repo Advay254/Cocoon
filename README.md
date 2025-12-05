@@ -2,7 +2,7 @@
 
 # 🦋 Cocoon - Production Ready
 
-*A complete adult video downloader with a clean web interface and REST API for smooth automation*
+*A complete adult video/porn video/Xxx Video downloader with a clean web interface and REST API for smooth automation*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-16+-green.svg)](https://nodejs.org/)
